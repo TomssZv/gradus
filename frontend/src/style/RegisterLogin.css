@@ -1,0 +1,21 @@
+.form {
+    border-radius: 25px;
+    background-color: red;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.form-cont {
+    display: flex;
+    justify-content: center;
+    align-content: center;
+}
+
+.register {
+
+}
+
+.login {
+
+}
