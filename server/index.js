@@ -5,7 +5,6 @@ const dotenv = require('dotenv') // .env file
 dotenv.config()
 const app = express();
 
-app.use(express.urlencoded({extended:true}));
 app.use(cors())
 
 const db = mysql.createConnection({
@@ -14,6 +13,9 @@ const db = mysql.createConnection({
     password: process.env.PASSWORD,
     database: process.env.DB
 })
+
+app.use(express.json());
+app.use(express.urlencoded({extended:true}));
 
 
 app.get('/', (req, res) => {
@@ -25,10 +27,19 @@ app.get('/', (req, res) => {
     })
 })
 
+
 app.post('/register', (req, res) => {
-    res.send('works')
-    console.log(req.body)
-    res.end()
+    const name = req.body.name;
+    const surname = req.body.surname;
+    const username = req.body.username;
+    const email = req.body.email;
+    const password = req.body.password;
+    const confirmPassword = req.body.confirmPassword;
+    if (password === confirmPassword) {
+        return res.json()
+    } else {
+        return res.send("Passwords don't match")
+    }
 })
 
 app.listen(5000, () => {
