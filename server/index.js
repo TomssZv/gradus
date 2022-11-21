@@ -3,14 +3,19 @@ const mysql = require('mysql')
 const cors = require('cors')
 const dotenv = require('dotenv') // .env file
 const bcrypt = require('bcrypt')
-const jwt = require('jsonwebtoken')
+const {createTokens, validateToken} = require('./JWT')
+const cookieParser = require('cookie-parser')
 
 const saltRounds = 10;
 
 dotenv.config()
 const app = express();
 
-app.use(cors())
+app.use(cors({
+    origin: 'http://localhost:3000',
+    credentials: true,
+}))
+app.use(cookieParser())
 
 const db = mysql.createConnection({
     host: process.env.HOST,
@@ -24,7 +29,7 @@ app.use(express.urlencoded({extended:true}));
 
 
 app.get('/', (req, res) => {
-    
+    res.send('hello')
 })
 
 // login handler
@@ -32,18 +37,28 @@ app.post('/login', (req, res) => {
     const email = req.body.email;
     const password = req.body.password;
     // gets hash
-    db.query(`select * from users where email = '${email}'`, (err, result) =>{
-        if (err) {
-            return res.send(err)
+    // console.log(user)
+    db.query(`select * from users where email = '${email}'`, (err, result, fields) =>{
+        if (result.length !== 1) {
+            return res.status(401).send('Wrong email or password')
         } else {
-            // return res.send(result[0].password)
-            let userId = {userId: result[0].ID}
+            const user = {
+                userId: result[0].ID,
+                first_name: result[0].first_name,
+                last_name: result[0].last_name
+            }
             // compares hashes
             bcrypt.compare(password, result[0].password).then(function(result) {
-                return res.json(jwt.sign(userId, process.env.JWT_SECRET, { expiresIn: 60 * 60 }));
+                const accessToken = createTokens(user)
+                res.cookie('access-token', accessToken, {
+                    maxAge: 60*60*1000,
+                    SameSite: 'None',
+                    httpOnly: true,
+                })
+                return res.send('LOGGED IN!')
             })
             .catch(err => {
-                // return res.send(err)
+                // return res.status(406).json({message: 'Invalid email or password'})
             })
         }
     })
@@ -57,8 +72,11 @@ app.post('/register', (req, res) => {
     const password = req.body.password
     const hash = bcrypt.hashSync(req.body.password, saltRounds);
     const confirmPassword = req.body.confirmPassword;
+    console.log(req.body.name)
     if (password === confirmPassword) {
-        db.query(`insert into users (first_name, last_name, email, username, password) values ('${name}', '${surname}', '${email}', '${username}', '${hash}')`, (err, result) => {
+        const user = {username: username}
+        createRefreshTokens(user)
+        db.query(`insert into users (first_name, last_name, email, username, password, refresh) values ('${name}', '${surname}', '${email}', '${username}', '${hash}')`, (err, result) => {
             if (!err) {
                 return res.send("User registered!")
             } else 
@@ -69,6 +87,10 @@ app.post('/register', (req, res) => {
     }
 })
 
+app.get('/profile',validateToken, (req, res) => {
+    console.log(req.user)
+    res.send('in')
+})
 
 app.listen(5000, () => {
     console.log('Server listening on port 5000')
